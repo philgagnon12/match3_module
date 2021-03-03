@@ -1,0 +1,7 @@
+# SCsub
+
+Import('env')
+
+env.add_source_files(env.modules_sources, "*.cpp") # Add all cpp files to the build
+
+env.Append(CPPPATH=["../../../match3/src"]) # this is an 'absolute' path
