@@ -8,7 +8,6 @@
 class Match3Cell : public Node2D {
     GDCLASS(Match3Cell, Node2D);
 
-    struct m3_cell* cell = NULL;
 
 
 protected:
@@ -17,5 +16,6 @@ protected:
 
 public:
 
+    struct m3_cell* cell = NULL;
     Match3Cell();
 };

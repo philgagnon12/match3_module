@@ -8,13 +8,15 @@
 #include "match3/match3.h"
 #include "match3/cell.h"
 #include "match3/board.h"
+#include "match3/print.h"
 
-class Match3Board : public Node {
-    GDCLASS(Match3Board, Node);
+class Match3Engine : public Node {
+    GDCLASS(Match3Engine, Node);
 
     struct m3_options options = M3_OPTIONS_CONST;
 
     List<Match3Cell*> base_cells;
+    Map<uint8_t,Match3Cell*> colors_to_base_cells;
 
     struct m3_cell* board = NULL;
 
@@ -43,6 +45,5 @@ public:
     void set_matches_required_to_clear(int matches_required_to_clear);
     int get_matches_required_to_clear(void) const;
 
-
-    Match3Board();
+    Match3Engine();
 };

@@ -1,64 +1,65 @@
-#include "match3_board.h"
+#include "match3_engine.h"
 
 #include "core/math/random_number_generator.h"
 
 void
-Match3Board::set_seed(int seed)
+Match3Engine::set_seed(int seed)
 {
     this->options.seed = seed;
 }
 
 int
-Match3Board::get_seed(void) const
+Match3Engine::get_seed(void) const
 {
     return this->options.seed;
 }
 
 void
-Match3Board::set_columns(int columns)
+Match3Engine::set_columns(int columns)
 {
     this->options.columns = columns;
 }
 
 int
-Match3Board::get_columns(void) const
+Match3Engine::get_columns(void) const
 {
     return this->options.columns;
 }
 
 void
-Match3Board::set_rows(int rows)
+Match3Engine::set_rows(int rows)
 {
     this->options.rows = rows;
 }
 
 int
-Match3Board::get_rows(void) const
+Match3Engine::get_rows(void) const
 {
     return this->options.rows;
 }
 
 void
-Match3Board::set_matches_required_to_clear(int matches_required_to_clear)
+Match3Engine::set_matches_required_to_clear(int matches_required_to_clear)
 {
     this->options.matches_required_to_clear = matches_required_to_clear;
 }
 
 int
-Match3Board::get_matches_required_to_clear(void) const
+Match3Engine::get_matches_required_to_clear(void) const
 {
     return this->options.matches_required_to_clear;
 }
 
-
 void
-Match3Board::_board_build(void)
+Match3Engine::_board_build(void)
 {
     uint8_t* colors_re = NULL;
 
     size_t colors_size = 0;
-    
+
     uint8_t colors_count = 0;
+
+    this->colors_to_base_cells.clear();
 
     for(List<Match3Cell*>::Element* e = this->base_cells.front(); e; e=e->next())
     {
@@ -73,8 +74,9 @@ Match3Board::_board_build(void)
             this->colors_size = colors_size;
 
         }
-        
+
         this->colors[colors_count-1] = ( m3_cell_flag_color | colors_count ) & m3_cell_mask_color;
+        this->colors_to_base_cells.insert( this->colors[colors_count-1], e->get());
     }
 
     // TODO better error message
@@ -90,12 +92,36 @@ Match3Board::_board_build(void)
 
     board_build( &this->options, &this->board);
 
-    // board_rand( &this->options, this->board);
+    board_rand( &this->options, this->board);
 
-    // board_shuffle( &this->options, this->board->right->bottom );
+    board_shuffle( &this->options, this->board->right->bottom );
+
+    struct m3_cell* cell_current = this->board;
+    while( cell_current != NULL )
+    {
+        Map<uint8_t,Match3Cell*>::Element* e = this->colors_to_base_cells.find( cell_current->category );
+        if( e != NULL )
+        {
+            Match3Cell* base_cell_for_color = e->get();
+            Node* node_cell_for_color = base_cell_for_color->duplicate();
+            Match3Cell* cell_for_color = Object::cast_to<Match3Cell>(node_cell_for_color);
+            if( cell_for_color != NULL )
+            {
+                cell_for_color->cell = cell_current;
+                Node* memNode = memnew(Node);
+                this->add_child(memNode);
+                printf("asd\n");
+            }
+
+        }
+        cell_current = cell_current->next;
+    }
+
+    print_tree();
+
 }
 
-void Match3Board::_notification(int p_what)
+void Match3Engine::_notification(int p_what)
 {
     if (p_what == NOTIFICATION_READY)
     {
@@ -105,7 +131,7 @@ void Match3Board::_notification(int p_what)
 
 
 void
-Match3Board::add_child_notify(Node *p_child)
+Match3Engine::add_child_notify(Node *p_child)
 {
     Match3Cell* match3_cell = Object::cast_to<Match3Cell>(p_child);
     if( match3_cell )
@@ -116,7 +142,7 @@ Match3Board::add_child_notify(Node *p_child)
 }
 
 void
-Match3Board::remove_child_notify(Node *p_child)
+Match3Engine::remove_child_notify(Node *p_child)
 {
     Match3Cell* match3_cell = Object::cast_to<Match3Cell>(p_child);
     if( match3_cell )
@@ -128,19 +154,21 @@ Match3Board::remove_child_notify(Node *p_child)
 
 
 void
-Match3Board::_bind_methods()
+Match3Engine::_bind_methods()
 {
-    ClassDB::bind_method(D_METHOD("set_seed", "seed"), &Match3Board::set_seed);
-    ClassDB::bind_method(D_METHOD("get_seed"), &Match3Board::get_seed);
+    ClassDB::bind_method(D_METHOD("set_seed", "seed"), &Match3Engine::set_seed);
+    ClassDB::bind_method(D_METHOD("get_seed"), &Match3Engine::get_seed);
 
-    ClassDB::bind_method(D_METHOD("set_columns", "columns"), &Match3Board::set_columns);
-    ClassDB::bind_method(D_METHOD("get_columns"), &Match3Board::get_columns);
+    ClassDB::bind_method(D_METHOD("set_columns", "columns"), &Match3Engine::set_columns);
+    ClassDB::bind_method(D_METHOD("get_columns"), &Match3Engine::get_columns);
 
-    ClassDB::bind_method(D_METHOD("set_rows", "rows"), &Match3Board::set_rows);
-    ClassDB::bind_method(D_METHOD("get_rows"), &Match3Board::get_rows);
+    ClassDB::bind_method(D_METHOD("set_rows", "rows"), &Match3Engine::set_rows);
+    ClassDB::bind_method(D_METHOD("get_rows"), &Match3Engine::get_rows);
 
-    ClassDB::bind_method(D_METHOD("set_matches_required_to_clear", "matches_required_to_clear"), &Match3Board::set_matches_required_to_clear);
-    ClassDB::bind_method(D_METHOD("get_matches_required_to_clear"), &Match3Board::get_matches_required_to_clear);
+    ClassDB::bind_method(D_METHOD("set_matches_required_to_clear", "matches_required_to_clear"), &Match3Engine::set_matches_required_to_clear);
+    ClassDB::bind_method(D_METHOD("get_matches_required_to_clear"), &Match3Engine::get_matches_required_to_clear);
+
+
 
     ADD_PROPERTY(PropertyInfo(Variant::INT, "seed"), "set_seed", "get_seed");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "columns"), "set_columns", "get_columns");
@@ -149,7 +177,7 @@ Match3Board::_bind_methods()
 
 }
 
-Match3Board::Match3Board()
+Match3Engine::Match3Engine()
 {
     RandomNumberGenerator rng;
     rng.randomize();
