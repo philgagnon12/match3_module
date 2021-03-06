@@ -110,8 +110,8 @@ Match3Engine::_board_build(void)
 
     board_rand( &this->m3_options, this->m3_board);
 
-    // Using matches_required_to_clear because its usually 3 and 3 is a good number 
-    if( colors_count >= this->m3_options.matches_required_to_clear)
+    // Anything below 5 will hang the engine
+    if( colors_count >= 5 )
     {
         board_shuffle( &this->m3_options, this->m3_board->right->bottom );
     }
@@ -137,7 +137,7 @@ Match3Engine::_board_build(void)
                 this->board->add_child(board_cell);
                 board_cell->set_owner(this->board);
 
-                board_cell->position_as(m3_cell_current->column, m3_cell_current->row);
+                board_cell->_position_as(m3_cell_current->column, m3_cell_current->row);
 
             }
 
@@ -152,6 +152,7 @@ void Match3Engine::_notification(int p_what)
     if (p_what == NOTIFICATION_READY)
     {
         print_line("ready!");
+        this->_board_build();
     }
 }
 
@@ -164,7 +165,7 @@ Match3Engine::add_child_notify(Node *p_child)
     {
         this->engine_cells.push_back(match3_cell);
         this->category_to_engine_cell.insert( match3_cell->get_category(), match3_cell );
-        this->_board_build();
+
     }
 }
 
@@ -177,6 +178,50 @@ Match3Engine::remove_child_notify(Node *p_child)
         this->engine_cells.erase(match3_cell);
         this->category_to_engine_cell.erase( match3_cell->get_category() );
         // this->_board_build();
+    }
+}
+
+void
+Match3Engine::swap(Node* subject, Node* target)
+{
+    ERR_FAIL_NULL(subject);
+    ERR_FAIL_NULL(target);
+
+    Match3Cell* match3_cell_subject = Object::cast_to<Match3Cell>(subject);
+    Match3Cell* match3_cell_target  = Object::cast_to<Match3Cell>(target);
+
+    ERR_FAIL_COND_MSG(!match3_cell_subject, "swap subject only works on Match3Cell.");
+    ERR_FAIL_COND_MSG(!match3_cell_target,  "swap target only works on Match3Cell.");
+
+    Map<Match3Cell*,struct m3_cell*>::Element* m3_subject_e = this->board_cell_to_m3_cell.find(match3_cell_subject);
+    Map<Match3Cell*,struct m3_cell*>::Element* m3_target_e = this->board_cell_to_m3_cell.find(match3_cell_target);
+
+    struct m3_cell* m3_subject = m3_subject_e->get();
+    struct m3_cell* m3_target = m3_target_e->get();
+
+    if( m3_subject != NULL && m3_target != NULL )
+    {
+        // cant swap with walls , as longs as its color it will work
+        m3_swap( &m3_subject, &m3_target );
+
+
+        if( m3_subject != NULL && m3_target != NULL )
+        {
+            print_line(vformat("engine swapped subject %d target %d", match3_cell_subject->get_category(), match3_cell_target->get_category()));
+            // swap worked
+            this->_swapped( match3_cell_subject, match3_cell_target );
+        }
+    }
+
+
+}
+
+void
+Match3Engine::_swapped(Match3Cell* subject, Match3Cell* target)
+{
+    if (get_script_instance() && get_script_instance()->has_method("_swapped")) {
+
+        get_script_instance()->call("_swapped", subject, target);
     }
 }
 
@@ -202,6 +247,9 @@ Match3Engine::_bind_methods()
     ADD_PROPERTY(PropertyInfo(Variant::INT, "columns"), "set_columns", "get_columns");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "rows"), "set_rows", "get_rows");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "matches_required_to_clear"), "set_matches_required_to_clear", "get_matches_required_to_clear");
+
+    ClassDB::bind_method(D_METHOD("swap", "subject", "target"), &Match3Engine::swap);
+    BIND_VMETHOD(MethodInfo("_swapped", PropertyInfo(Variant::OBJECT, "subject"), PropertyInfo(Variant::OBJECT, "target") ));
 
 }
 

@@ -17,7 +17,7 @@ public:
     virtual void set_category(uint8_t category);
     virtual uint8_t get_category(void) const;
 
-    virtual void position_as( uint8_t column, uint8_t row){};
+    virtual void _position_as( uint8_t column, uint8_t row);
 
     Match3Cell();
 };

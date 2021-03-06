@@ -10,6 +10,7 @@
 #include "match3/cell.h"
 #include "match3/board.h"
 #include "match3/print.h"
+#include "match3/swap.h"
 
 class Match3Engine : public Node {
     GDCLASS(Match3Engine, Node);
@@ -54,6 +55,10 @@ public:
 
     void set_matches_required_to_clear(int matches_required_to_clear);
     int get_matches_required_to_clear(void) const;
+
+    // subject,target Match3Cell*
+    void swap(Node* subject, Node* target);
+    virtual void _swapped(Match3Cell* subject, Match3Cell* target);
 
     Match3Engine();
     ~Match3Engine();

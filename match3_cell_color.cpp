@@ -12,7 +12,6 @@ Match3CellColor::get_category(void) const
     return ( m3_cell_flag_color | this->category ) & m3_cell_mask_color;
 }
 
-
 void
 Match3CellColor::_bind_methods()
 {
