@@ -5,51 +5,65 @@
 void
 Match3Engine::set_seed(int seed)
 {
-    this->options.seed = seed;
+    this->m3_options.seed = seed;
 }
 
 int
 Match3Engine::get_seed(void) const
 {
-    return this->options.seed;
+    return this->m3_options.seed;
 }
 
 void
 Match3Engine::set_columns(int columns)
 {
-    this->options.columns = columns;
+    this->m3_options.columns = columns;
 }
 
 int
 Match3Engine::get_columns(void) const
 {
-    return this->options.columns;
+    return this->m3_options.columns;
 }
 
 void
 Match3Engine::set_rows(int rows)
 {
-    this->options.rows = rows;
+    this->m3_options.rows = rows;
 }
 
 int
 Match3Engine::get_rows(void) const
 {
-    return this->options.rows;
+    return this->m3_options.rows;
 }
 
 void
 Match3Engine::set_matches_required_to_clear(int matches_required_to_clear)
 {
-    this->options.matches_required_to_clear = matches_required_to_clear;
+    this->m3_options.matches_required_to_clear = matches_required_to_clear;
 }
 
 int
 Match3Engine::get_matches_required_to_clear(void) const
 {
-    return this->options.matches_required_to_clear;
+    return this->m3_options.matches_required_to_clear;
 }
 
+void
+Match3Engine::board_clear_children()
+{
+
+    this->board_cell_to_m3_cell.clear();
+    for(int i = 0; i < this->board->get_child_count(); i++ )
+    {
+        Node* child = this->board->get_child(i);
+        this->board->remove_child(child);
+    }
+
+}
+
+// TODO changing a category of an engine_cell from editor should re-trigger _board_build
 void
 Match3Engine::_board_build(void)
 {
@@ -59,65 +73,77 @@ Match3Engine::_board_build(void)
 
     uint8_t colors_count = 0;
 
-    this->colors_to_base_cells.clear();
-
-    for(List<Match3Cell*>::Element* e = this->base_cells.front(); e; e=e->next())
+    // Reset colors array
+    for(List<Match3Cell*>::Element* e = this->engine_cells.front(); e; e=e->next())
     {
         colors_size = sizeof( uint8_t ) * (++colors_count);
 
-        if( colors_size > this->colors_size )
+        if( colors_size > this->m3_colors_size )
         {
-            colors_re = (uint8_t*)memrealloc( this->colors, colors_size);
+            colors_re = (uint8_t*)memrealloc( this->m3_colors, colors_size);
             CRASH_COND( colors_re == NULL );
 
-            this->colors = colors_re;
-            this->colors_size = colors_size;
+            this->m3_colors = colors_re;
+            this->m3_colors_size = colors_size;
 
         }
 
-        this->colors[colors_count-1] = ( m3_cell_flag_color | colors_count ) & m3_cell_mask_color;
-        this->colors_to_base_cells.insert( this->colors[colors_count-1], e->get());
+        Match3Cell* match3_cell = e->get();
+
+        this->m3_colors[colors_count-1] = match3_cell->get_category();
+        print_line(vformat("m3_colors %d %02X", (int)this->m3_colors[colors_count-1], this->m3_colors[colors_count-1]));
     }
 
     // TODO better error message
-    ERR_FAIL_COND_MSG( colors_count < this->options.matches_required_to_clear, "You should have lots of colors");
+    // ERR_FAIL_COND_MSG( colors_count < this->options.matches_required_to_clear, "You should have lots of colors");
 
-    this->options.colors = this->colors;
-    this->options.colors_size = this->colors_size;
+    this->m3_options.colors = this->m3_colors;
+    this->m3_options.colors_size = this->m3_colors_size;
 
-    if( this->board != NULL )
+    // TODO re-enable
+    // if( this->m3_board != NULL )
+    // {
+    //     board_destroy(this->m3_board);
+    // }
+
+    board_build( &this->m3_options, &this->m3_board);
+
+    board_rand( &this->m3_options, this->m3_board);
+
+    // Using matches_required_to_clear because its usually 3 and 3 is a good number 
+    if( colors_count >= this->m3_options.matches_required_to_clear)
     {
-        board_destroy(this->board);
+        board_shuffle( &this->m3_options, this->m3_board->right->bottom );
     }
 
-    board_build( &this->options, &this->board);
+    this->board_clear_children();
 
-    board_rand( &this->options, this->board);
-
-    board_shuffle( &this->options, this->board->right->bottom );
-
-    struct m3_cell* cell_current = this->board;
-    while( cell_current != NULL )
+    struct m3_cell* m3_cell_current = this->m3_board;
+    while( m3_cell_current != NULL )
     {
-        Map<uint8_t,Match3Cell*>::Element* e = this->colors_to_base_cells.find( cell_current->category );
+        Map<uint8_t,Match3Cell*>::Element* e = this->category_to_engine_cell.find( m3_cell_current->category );
         if( e != NULL )
         {
-            Match3Cell* base_cell_for_color = e->get();
-            Node* node_cell_for_color = base_cell_for_color->duplicate();
-            Match3Cell* cell_for_color = Object::cast_to<Match3Cell>(node_cell_for_color);
-            if( cell_for_color != NULL )
+            Match3Cell* engine_cell = e->get();
+
+            Node* node_board_cell = engine_cell->duplicate();
+
+            Match3Cell* board_cell = Object::cast_to<Match3Cell>(node_board_cell);
+
+            if( board_cell != NULL )
             {
-                cell_for_color->cell = cell_current;
-                Node* memNode = memnew(Node);
-                this->add_child(memNode);
-                printf("asd\n");
+                this->board_cell_to_m3_cell.insert(board_cell, m3_cell_current);
+
+                this->board->add_child(board_cell);
+                board_cell->set_owner(this->board);
+
+                board_cell->position_as(m3_cell_current->column, m3_cell_current->row);
+
             }
 
         }
-        cell_current = cell_current->next;
-    }
-
-    print_tree();
+        m3_cell_current = m3_cell_current->next;
+    } // while
 
 }
 
@@ -136,7 +162,8 @@ Match3Engine::add_child_notify(Node *p_child)
     Match3Cell* match3_cell = Object::cast_to<Match3Cell>(p_child);
     if( match3_cell )
     {
-        this->base_cells.push_back( match3_cell );
+        this->engine_cells.push_back(match3_cell);
+        this->category_to_engine_cell.insert( match3_cell->get_category(), match3_cell );
         this->_board_build();
     }
 }
@@ -147,8 +174,9 @@ Match3Engine::remove_child_notify(Node *p_child)
     Match3Cell* match3_cell = Object::cast_to<Match3Cell>(p_child);
     if( match3_cell )
     {
-        this->base_cells.erase( match3_cell );
-        this->_board_build();
+        this->engine_cells.erase(match3_cell);
+        this->category_to_engine_cell.erase( match3_cell->get_category() );
+        // this->_board_build();
     }
 }
 
@@ -181,5 +209,21 @@ Match3Engine::Match3Engine()
 {
     RandomNumberGenerator rng;
     rng.randomize();
-    this->options.seed = (int)rng.randi();
+    this->m3_options.seed = (int)rng.randi();
+
+    this->board = memnew(Match3Board);
+    this->add_child(this->board);
+}
+
+Match3Engine::~Match3Engine()
+{
+    // print_line(vformat("%s", __FUNCTION__));
+    // this->board_clear_children();
+    // this->category_to_engine_cell.clear();
+    // this->engine_cells.clear();
+    // if( this->m3_board != NULL )
+    // {
+    //     board_destroy(this->m3_board);
+    // }
+    // memfree(this->m3_colors);
 }

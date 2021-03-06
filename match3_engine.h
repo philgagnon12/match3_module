@@ -1,6 +1,7 @@
 #pragma once
 
 #include "match3_cell.h"
+#include "match3_board.h"
 
 #include "scene/main/node.h"
 #include "core/object.h"
@@ -13,16 +14,25 @@
 class Match3Engine : public Node {
     GDCLASS(Match3Engine, Node);
 
-    struct m3_options options = M3_OPTIONS_CONST;
+    struct m3_options m3_options = M3_OPTIONS_CONST;
 
-    List<Match3Cell*> base_cells;
-    Map<uint8_t,Match3Cell*> colors_to_base_cells;
+    List<Match3Cell*> engine_cells;
 
-    struct m3_cell* board = NULL;
+    Map<uint8_t,Match3Cell*> category_to_engine_cell;
+    Map<Match3Cell*,uint8_t> engine_cell_to_category;
 
-    uint8_t* colors = NULL;
-    size_t colors_size = 0;
+    struct m3_cell* m3_board = NULL;
 
+    uint8_t* m3_colors = NULL;
+    size_t m3_colors_size = 0;
+
+    Match3Board* board = NULL;
+    Map<Match3Cell*,struct m3_cell*> board_cell_to_m3_cell;
+
+    // m3_cell_to_cell
+    // cell_to_m3_cell
+
+    void board_clear_children();
 
 protected:
     void _board_build(void);
@@ -46,4 +56,5 @@ public:
     int get_matches_required_to_clear(void) const;
 
     Match3Engine();
+    ~Match3Engine();
 };
