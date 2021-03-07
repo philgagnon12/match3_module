@@ -100,20 +100,19 @@ Match3Engine::_board_build(void)
     this->m3_options.colors = this->m3_colors;
     this->m3_options.colors_size = this->m3_colors_size;
 
-    // TODO re-enable
-    // if( this->m3_board != NULL )
-    // {
-    //     board_destroy(this->m3_board);
-    // }
+    if( this->m3_board != NULL )
+    {
+        m3_board_destroy(this->m3_board);
+    }
 
-    board_build( &this->m3_options, &this->m3_board);
+    m3_board_build( &this->m3_options, &this->m3_board);
 
-    board_rand( &this->m3_options, this->m3_board);
+    m3_board_rand( &this->m3_options, this->m3_board);
 
     // Anything below 5 will hang the engine
     if( colors_count >= 5 )
     {
-        board_shuffle( &this->m3_options, this->m3_board->right->bottom );
+        m3_board_shuffle( &this->m3_options, this->m3_board->right->bottom );
     }
 
     this->board_clear_children();
@@ -152,8 +151,35 @@ void Match3Engine::_notification(int p_what)
     if (p_what == NOTIFICATION_READY)
     {
         print_line("ready!");
+        RandomNumberGenerator rng;
+        rng.randomize();
+        this->m3_options.seed = (int)rng.randi();
+
+        this->board = memnew(Match3Board);
+        this->add_child(this->board);
         this->_board_build();
     }
+    else if(p_what == NOTIFICATION_EXIT_TREE)
+    {
+        print_line("exit tree!");
+        this->board_clear_children();
+        this->category_to_engine_cell.clear();
+        this->engine_cells.clear();
+
+        this->remove_child(this->board);
+        memdelete(this->board);
+        if( this->m3_board != NULL )
+        {
+            m3_board_destroy(this->m3_board);
+        }
+        memfree(this->m3_colors);
+    }
+    else if(p_what == NOTIFICATION_PREDELETE )
+    {
+        print_line("pre delete!");
+
+    }
+
 }
 
 
@@ -187,17 +213,8 @@ Match3Engine::swap(Node* subject, Node* target)
     ERR_FAIL_NULL(subject);
     ERR_FAIL_NULL(target);
 
-    Match3Cell* match3_cell_subject = Object::cast_to<Match3Cell>(subject);
-    Match3Cell* match3_cell_target  = Object::cast_to<Match3Cell>(target);
-
-    ERR_FAIL_COND_MSG(!match3_cell_subject, "swap subject only works on Match3Cell.");
-    ERR_FAIL_COND_MSG(!match3_cell_target,  "swap target only works on Match3Cell.");
-
-    Map<Match3Cell*,struct m3_cell*>::Element* m3_subject_e = this->board_cell_to_m3_cell.find(match3_cell_subject);
-    Map<Match3Cell*,struct m3_cell*>::Element* m3_target_e = this->board_cell_to_m3_cell.find(match3_cell_target);
-
-    struct m3_cell* m3_subject = m3_subject_e->get();
-    struct m3_cell* m3_target = m3_target_e->get();
+    struct m3_cell* m3_subject = this->node_to_m3_cell(subject);
+    struct m3_cell* m3_target = this->node_to_m3_cell(target);
 
     if( m3_subject != NULL && m3_target != NULL )
     {
@@ -207,24 +224,67 @@ Match3Engine::swap(Node* subject, Node* target)
 
         if( m3_subject != NULL && m3_target != NULL )
         {
-            print_line(vformat("engine swapped subject %d target %d", match3_cell_subject->get_category(), match3_cell_target->get_category()));
+            Match3Cell* engine_subject = Object::cast_to<Match3Cell>(subject);
+            Match3Cell* engine_target  = Object::cast_to<Match3Cell>(target);
+
+            this->board_cell_to_m3_cell.erase(engine_subject);
+            this->board_cell_to_m3_cell.erase(engine_target);
+
+            this->board_cell_to_m3_cell.insert(engine_subject, m3_target);
+            this->board_cell_to_m3_cell.insert(engine_target, m3_subject);
+
+            print_line(vformat("engine swapped subject %d target %d", m3_target->category, m3_subject->category));
             // swap worked
-            this->_swapped( match3_cell_subject, match3_cell_target );
+            this->_swapped( engine_subject,
+                            engine_target );
         }
     }
 
 
 }
 
+bool
+Match3Engine::cell_are_neighbours(Node* subject, Node* target)
+{
+    ERR_FAIL_NULL_V(subject, false);
+    ERR_FAIL_NULL_V(target, false);
+
+    struct m3_cell* m3_subject = this->node_to_m3_cell(subject);
+    struct m3_cell* m3_target = this->node_to_m3_cell(target);
+
+    if(m3_cell_are_neighbours(m3_subject, m3_target))
+    {
+        return true;
+    }
+    return false;
+}
+
 void
 Match3Engine::_swapped(Match3Cell* subject, Match3Cell* target)
 {
+    ERR_FAIL_NULL(subject);
+    ERR_FAIL_NULL(target);
+
     if (get_script_instance() && get_script_instance()->has_method("_swapped")) {
 
         get_script_instance()->call("_swapped", subject, target);
     }
 }
 
+
+struct m3_cell*
+Match3Engine::node_to_m3_cell(Node* node)
+{
+    ERR_FAIL_NULL_V(node, NULL);
+
+    Match3Cell* match3_cell = Object::cast_to<Match3Cell>(node);
+
+    ERR_FAIL_COND_V_MSG(!match3_cell, NULL, "node_to_m3_cell only works on Match3Cell.");
+
+    Map<Match3Cell*,struct m3_cell*>::Element* m3_cell_e = this->board_cell_to_m3_cell.find(match3_cell);
+
+    return m3_cell_e->get();
+}
 
 void
 Match3Engine::_bind_methods()
@@ -251,27 +311,15 @@ Match3Engine::_bind_methods()
     ClassDB::bind_method(D_METHOD("swap", "subject", "target"), &Match3Engine::swap);
     BIND_VMETHOD(MethodInfo("_swapped", PropertyInfo(Variant::OBJECT, "subject"), PropertyInfo(Variant::OBJECT, "target") ));
 
+    ClassDB::bind_method(D_METHOD("cell_are_neighbours", "subject", "target"), &Match3Engine::cell_are_neighbours);
 }
 
 Match3Engine::Match3Engine()
 {
-    RandomNumberGenerator rng;
-    rng.randomize();
-    this->m3_options.seed = (int)rng.randi();
 
-    this->board = memnew(Match3Board);
-    this->add_child(this->board);
 }
 
 Match3Engine::~Match3Engine()
 {
-    // print_line(vformat("%s", __FUNCTION__));
-    // this->board_clear_children();
-    // this->category_to_engine_cell.clear();
-    // this->engine_cells.clear();
-    // if( this->m3_board != NULL )
-    // {
-    //     board_destroy(this->m3_board);
-    // }
-    // memfree(this->m3_colors);
+
 }

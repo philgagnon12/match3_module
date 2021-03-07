@@ -42,6 +42,7 @@ protected:
     virtual void add_child_notify(Node *p_child);
     virtual void remove_child_notify(Node *p_child);
     void _notification(int p_what);
+    struct m3_cell* node_to_m3_cell(Node* node);
 
 public:
     void set_seed(int seed);
@@ -59,6 +60,9 @@ public:
     // subject,target Match3Cell*
     void swap(Node* subject, Node* target);
     virtual void _swapped(Match3Cell* subject, Match3Cell* target);
+
+    // subject,target Match3Cell*
+    bool cell_are_neighbours(Node* subject, Node* target);
 
     Match3Engine();
     ~Match3Engine();
