@@ -299,8 +299,8 @@ Match3Engine::match_either_cell( Node* a,
                                  Node* b,
                                  Array matches )
 {
-    ERR_FAIL_NULL_V(a, false);
-    ERR_FAIL_NULL_V(b, false);
+    ERR_FAIL_NULL_V(a, NULL);
+    ERR_FAIL_NULL_V(b, NULL);
 
     const struct m3_cell* m3_cell_a = (const struct m3_cell*)this->node_to_m3_cell(a);
     const struct m3_cell* m3_cell_b = (const struct m3_cell*)this->node_to_m3_cell(b);
@@ -321,7 +321,7 @@ Match3Engine::match_either_cell( Node* a,
         Map<struct m3_cell*,Match3Cell*>::Element* e = this->m3_cell_to_board_cell.find((struct m3_cell*)match_result.matched[i]);
         Match3Cell* engine_cell_match = e->get();
         // TODO on fail im not m3_match_result_destroy
-        ERR_FAIL_NULL_V(engine_cell_match, false);
+        ERR_FAIL_NULL_V(engine_cell_match, NULL);
         matches.push_back(engine_cell_match);
     }
 
@@ -330,7 +330,7 @@ Match3Engine::match_either_cell( Node* a,
         Map<struct m3_cell*,Match3Cell*>::Element* a_or_b_e = this->m3_cell_to_board_cell.find((struct m3_cell*)m3_cell_a_or_b);
         a_or_b = a_or_b_e->get();
         // TODO on fail im not m3_match_result_destroy
-        ERR_FAIL_NULL_V(a_or_b, false);
+        ERR_FAIL_NULL_V(a_or_b, NULL);
 
     }
 
