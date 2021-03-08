@@ -75,6 +75,7 @@ public:
                        Array matches ); // TODO not sure that pushing into array works...
 
     void match_clear( Array matches );
+    void _match_cleared( Array matches_cleared );
 
     Match3Engine();
     ~Match3Engine();

@@ -363,7 +363,27 @@ void Match3Engine::match_clear( Array matches )
     m3_match_clear( &this->m3_options,
                     &this->match_result_for_match_clear );
 
-    // TODO
+    Array matches_cleared;
+
+    for(int i = 0; i < this->match_result_for_match_clear.matched_count; i++)
+    {
+        Map<struct m3_cell*,Match3Cell*>::Element* e = this->m3_cell_to_board_cell.find((struct m3_cell*)this->match_result_for_match_clear.matched[i]);
+        ERR_FAIL_NULL(e);
+        Match3Cell* board_cell = e->get();
+        ERR_FAIL_NULL(board_cell);
+        board_cell->set_category(this->match_result_for_match_clear.matched[i]->category);
+        matches_cleared.push_back(board_cell);
+    }
+
+    this->_match_cleared(matches_cleared);
+}
+
+void Match3Engine::_match_cleared( Array matches_cleared )
+{
+    if (get_script_instance() && get_script_instance()->has_method("_match_cleared")) {
+
+        get_script_instance()->call("_match_cleared", matches_cleared);
+    }
 }
 
 void
@@ -393,6 +413,10 @@ Match3Engine::_bind_methods()
 
     ClassDB::bind_method(D_METHOD("cell_are_neighbours", "subject", "target"), &Match3Engine::cell_are_neighbours);
     ClassDB::bind_method(D_METHOD("match_either_cell", "a", "b", "matches"), &Match3Engine::match_either_cell);
+
+    ClassDB::bind_method(D_METHOD("match_clear", "matches"), &Match3Engine::match_clear);
+    BIND_VMETHOD(MethodInfo("_match_cleared", PropertyInfo(Variant::ARRAY, "matches_cleared") ));
+
 }
 
 Match3Engine::Match3Engine()

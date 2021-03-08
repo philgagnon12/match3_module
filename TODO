@@ -1,0 +1,1 @@
+* Instead of assigning category i should have an Match3Cell::update_cell function
