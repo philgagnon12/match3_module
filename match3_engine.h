@@ -11,6 +11,7 @@
 #include "match3/board.h"
 #include "match3/print.h"
 #include "match3/swap.h"
+#include "match3/match.h"
 
 class Match3Engine : public Node {
     GDCLASS(Match3Engine, Node);
@@ -28,11 +29,15 @@ class Match3Engine : public Node {
     size_t m3_colors_size = 0;
 
     Match3Board* board = NULL;
+
+    // TODO const struct m3_cell*
     Map<Match3Cell*,struct m3_cell*> board_cell_to_m3_cell;
+    Map<struct m3_cell*,Match3Cell*> m3_cell_to_board_cell;
 
     // m3_cell_to_cell
     // cell_to_m3_cell
 
+    struct m3_match_result match_result_for_match_clear = M3_MATCH_RESULT_CONST;
     void board_clear_children();
 
 protected:
@@ -63,6 +68,13 @@ public:
 
     // subject,target Match3Cell*
     bool cell_are_neighbours(Node* subject, Node* target);
+
+    Node* // Match3Cell*
+    match_either_cell( Node* a,
+                       Node* b,
+                       Array matches ); // TODO not sure that pushing into array works...
+
+    void match_clear( Array matches );
 
     Match3Engine();
     ~Match3Engine();

@@ -55,6 +55,7 @@ Match3Engine::board_clear_children()
 {
 
     this->board_cell_to_m3_cell.clear();
+    this->m3_cell_to_board_cell.clear();
     for(int i = 0; i < this->board->get_child_count(); i++ )
     {
         Node* child = this->board->get_child(i);
@@ -132,6 +133,7 @@ Match3Engine::_board_build(void)
             if( board_cell != NULL )
             {
                 this->board_cell_to_m3_cell.insert(board_cell, m3_cell_current);
+                this->m3_cell_to_board_cell.insert(m3_cell_current, board_cell);
 
                 this->board->add_child(board_cell);
                 board_cell->set_owner(this->board);
@@ -151,12 +153,7 @@ void Match3Engine::_notification(int p_what)
     if (p_what == NOTIFICATION_READY)
     {
         print_line("ready!");
-        RandomNumberGenerator rng;
-        rng.randomize();
-        this->m3_options.seed = (int)rng.randi();
 
-        this->board = memnew(Match3Board);
-        this->add_child(this->board);
         this->_board_build();
     }
     else if(p_what == NOTIFICATION_EXIT_TREE)
@@ -168,11 +165,14 @@ void Match3Engine::_notification(int p_what)
 
         this->remove_child(this->board);
         memdelete(this->board);
+        m3_match_result_destroy( &this->match_result_for_match_clear );
         if( this->m3_board != NULL )
         {
             m3_board_destroy(this->m3_board);
         }
         memfree(this->m3_colors);
+
+
     }
     else if(p_what == NOTIFICATION_PREDELETE )
     {
@@ -230,8 +230,14 @@ Match3Engine::swap(Node* subject, Node* target)
             this->board_cell_to_m3_cell.erase(engine_subject);
             this->board_cell_to_m3_cell.erase(engine_target);
 
+            this->m3_cell_to_board_cell.erase(m3_subject);
+            this->m3_cell_to_board_cell.erase(m3_target);
+
             this->board_cell_to_m3_cell.insert(engine_subject, m3_target);
             this->board_cell_to_m3_cell.insert(engine_target, m3_subject);
+
+            this->m3_cell_to_board_cell.insert(m3_target, engine_subject);
+            this->m3_cell_to_board_cell.insert(m3_subject, engine_target);
 
             print_line(vformat("engine swapped subject %d target %d", m3_target->category, m3_subject->category));
             // swap worked
@@ -283,7 +289,81 @@ Match3Engine::node_to_m3_cell(Node* node)
 
     Map<Match3Cell*,struct m3_cell*>::Element* m3_cell_e = this->board_cell_to_m3_cell.find(match3_cell);
 
+    ERR_FAIL_NULL_V_MSG(m3_cell_e, NULL, "struct m3_cell not found by Match3Cell");
+
     return m3_cell_e->get();
+}
+
+Node*
+Match3Engine::match_either_cell( Node* a,
+                                 Node* b,
+                                 Array matches )
+{
+    ERR_FAIL_NULL_V(a, false);
+    ERR_FAIL_NULL_V(b, false);
+
+    const struct m3_cell* m3_cell_a = (const struct m3_cell*)this->node_to_m3_cell(a);
+    const struct m3_cell* m3_cell_b = (const struct m3_cell*)this->node_to_m3_cell(b);
+
+    struct m3_match_result match_result = M3_MATCH_RESULT_CONST;
+    const struct m3_cell* m3_cell_a_or_b = NULL;
+
+    Node* a_or_b = NULL;
+
+    m3_match_either_cell( &this->m3_options,
+                          m3_cell_a,
+                          m3_cell_b,
+                          &match_result,
+                          &m3_cell_a_or_b );
+
+    for(int i = 0; i < match_result.matched_count; i++)
+    {
+        Map<struct m3_cell*,Match3Cell*>::Element* e = this->m3_cell_to_board_cell.find((struct m3_cell*)match_result.matched[i]);
+        Match3Cell* engine_cell_match = e->get();
+        // TODO on fail im not m3_match_result_destroy
+        ERR_FAIL_NULL_V(engine_cell_match, false);
+        matches.push_back(engine_cell_match);
+    }
+
+    if( m3_cell_a_or_b != NULL )
+    {
+        Map<struct m3_cell*,Match3Cell*>::Element* a_or_b_e = this->m3_cell_to_board_cell.find((struct m3_cell*)m3_cell_a_or_b);
+        a_or_b = a_or_b_e->get();
+        // TODO on fail im not m3_match_result_destroy
+        ERR_FAIL_NULL_V(a_or_b, false);
+
+    }
+
+    m3_match_result_destroy(&match_result);
+
+    return a_or_b;
+}
+
+void Match3Engine::match_clear( Array matches )
+{
+    for(int i = 0; i < matches.size(); i++)
+    {
+       Match3Cell* engine_cell = Object::cast_to<Match3Cell>(matches[i]);
+       ERR_FAIL_NULL(engine_cell);
+       struct m3_cell* cell = this->node_to_m3_cell(Object::cast_to<Node>(engine_cell));
+       ERR_FAIL_NULL(cell);
+       
+       if( i == 0 )
+       {
+            m3_match_result_init( &this->match_result_for_match_clear,
+                                  cell );
+       }
+       else
+       {
+            m3_match_result_add_match( &this->match_result_for_match_clear,
+                                       cell );
+       }
+    }
+
+    m3_match_clear( &this->m3_options,
+                    &this->match_result_for_match_clear );
+
+    // TODO
 }
 
 void
@@ -312,11 +392,17 @@ Match3Engine::_bind_methods()
     BIND_VMETHOD(MethodInfo("_swapped", PropertyInfo(Variant::OBJECT, "subject"), PropertyInfo(Variant::OBJECT, "target") ));
 
     ClassDB::bind_method(D_METHOD("cell_are_neighbours", "subject", "target"), &Match3Engine::cell_are_neighbours);
+    ClassDB::bind_method(D_METHOD("match_either_cell", "a", "b", "matches"), &Match3Engine::match_either_cell);
 }
 
 Match3Engine::Match3Engine()
 {
+    RandomNumberGenerator rng;
+    rng.randomize();
+    this->m3_options.seed = (int)rng.randi();
 
+    this->board = memnew(Match3Board);
+    this->add_child(this->board);
 }
 
 Match3Engine::~Match3Engine()
