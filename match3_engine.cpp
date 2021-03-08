@@ -64,6 +64,35 @@ Match3Engine::board_clear_children()
 
 }
 
+Match3Cell* Match3Engine::add_board_cell_from_m3_cell( struct m3_cell* cell )
+{
+    Map<uint8_t,Match3Cell*>::Element* e = this->category_to_engine_cell.find( cell->category );
+    ERR_FAIL_NULL_V(e, NULL);
+    if( e != NULL )
+    {
+        Match3Cell* engine_cell = e->get();
+
+        Node* node_board_cell = engine_cell->duplicate();
+
+        Match3Cell* board_cell = Object::cast_to<Match3Cell>(node_board_cell);
+
+        if( board_cell != NULL )
+        {
+            this->board_cell_to_m3_cell.insert(board_cell, cell);
+            this->m3_cell_to_board_cell.insert(cell, board_cell);
+
+            this->board->add_child(board_cell);
+            board_cell->set_owner(this->board);
+
+            board_cell->_position_as(cell->column, cell->row);
+            return board_cell;
+        }
+
+    }
+    return NULL;
+
+}
+
 // TODO changing a category of an engine_cell from editor should re-trigger _board_build
 void
 Match3Engine::_board_build(void)
@@ -121,28 +150,7 @@ Match3Engine::_board_build(void)
     struct m3_cell* m3_cell_current = this->m3_board;
     while( m3_cell_current != NULL )
     {
-        Map<uint8_t,Match3Cell*>::Element* e = this->category_to_engine_cell.find( m3_cell_current->category );
-        if( e != NULL )
-        {
-            Match3Cell* engine_cell = e->get();
-
-            Node* node_board_cell = engine_cell->duplicate();
-
-            Match3Cell* board_cell = Object::cast_to<Match3Cell>(node_board_cell);
-
-            if( board_cell != NULL )
-            {
-                this->board_cell_to_m3_cell.insert(board_cell, m3_cell_current);
-                this->m3_cell_to_board_cell.insert(m3_cell_current, board_cell);
-
-                this->board->add_child(board_cell);
-                board_cell->set_owner(this->board);
-
-                board_cell->_position_as(m3_cell_current->column, m3_cell_current->row);
-
-            }
-
-        }
+        this->add_board_cell_from_m3_cell(m3_cell_current);
         m3_cell_current = m3_cell_current->next;
     } // while
 
@@ -238,6 +246,7 @@ Match3Engine::swap(Node* subject, Node* target)
 
             this->m3_cell_to_board_cell.insert(m3_target, engine_subject);
             this->m3_cell_to_board_cell.insert(m3_subject, engine_target);
+
 
             print_line(vformat("engine swapped subject %d target %d", m3_target->category, m3_subject->category));
             // swap worked
@@ -386,6 +395,92 @@ void Match3Engine::_match_cleared( Array matches_cleared )
     }
 }
 
+// TODO this was kind of re-adapted from the m3 engine and not using the original function ....
+void Match3Engine::match_clear_sort( Array matches_cleared )
+{
+    const struct m3_cell* cell_first_top_color = NULL;
+
+    struct m3_cell* cell_to_fallthrough = NULL;
+
+    for(int i = 0; i < matches_cleared.size(); i++)
+    {
+        Match3Cell* engine_cell_matched = Object::cast_to<Match3Cell>(matches_cleared[i]);
+        ERR_FAIL_NULL(engine_cell_matched);
+        struct m3_cell* cell_matched = this->node_to_m3_cell(Object::cast_to<Node>(engine_cell_matched));
+        ERR_FAIL_NULL(cell_matched);
+
+
+        m3_cell_find_first_top_color( cell_matched, &cell_first_top_color );
+
+        cell_to_fallthrough = (struct m3_cell*)cell_first_top_color;
+
+        while( cell_to_fallthrough != NULL )
+        {
+            Map<struct m3_cell*, Match3Cell*>::Element* engine_cell_to_path_e = this->m3_cell_to_board_cell.find(cell_to_fallthrough);
+            ERR_FAIL_NULL(engine_cell_to_path_e);
+
+            Match3Cell* engine_cell_to_path = engine_cell_to_path_e->get();
+            ERR_FAIL_NULL(engine_cell_to_path_e);
+
+            this->board_cell_to_m3_cell.erase(engine_cell_to_path);
+            this->m3_cell_to_board_cell.erase(cell_to_fallthrough);
+
+            m3_cell_fallthrough( &this->m3_options, &cell_to_fallthrough );
+
+            this->m3_cell_to_board_cell.insert(cell_to_fallthrough, engine_cell_to_path);
+            this->board_cell_to_m3_cell.insert(engine_cell_to_path, cell_to_fallthrough);
+
+            engine_cell_to_path->_path_to(cell_to_fallthrough->column, cell_to_fallthrough->row);
+
+            m3_cell_find_first_top_color( cell_to_fallthrough, &cell_first_top_color );
+
+            cell_to_fallthrough = (struct m3_cell*)cell_first_top_color;
+        }
+    }
+
+    this->_match_clear_sorted(matches_cleared);
+    matches_cleared.clear();
+}
+
+void Match3Engine::_match_clear_sorted( Array matches_cleared )
+{
+    if (get_script_instance() && get_script_instance()->has_method("_match_clear_sorted")) {
+
+        get_script_instance()->call("_match_clear_sorted", matches_cleared);
+    }
+}
+
+void Match3Engine::board_fill(void)
+{
+    struct m3_cell* cell_current = this->m3_board;
+
+    Array added_hidden_cells;
+
+    while( cell_current != NULL )
+    {
+        if( cell_current->category == ( m3_cell_flag_color | m3_cell_flag_color_open ) )
+        {
+            m3_cell_rand( &this->m3_options, cell_current );
+            Match3Cell* added = this->add_board_cell_from_m3_cell(cell_current);
+            ERR_FAIL_NULL(added);
+            added_hidden_cells.push_back(added);
+        }
+        cell_current = cell_current->next;
+    }
+
+    this->_board_filled(added_hidden_cells);
+    added_hidden_cells.clear();
+}
+
+void Match3Engine::_board_filled( Array added_hidden_cells )
+{
+    if (get_script_instance() && get_script_instance()->has_method("_board_filled")) {
+
+        get_script_instance()->call("_board_filled", added_hidden_cells);
+    }
+}
+
+
 void
 Match3Engine::_bind_methods()
 {
@@ -416,6 +511,12 @@ Match3Engine::_bind_methods()
 
     ClassDB::bind_method(D_METHOD("match_clear", "matches"), &Match3Engine::match_clear);
     BIND_VMETHOD(MethodInfo("_match_cleared", PropertyInfo(Variant::ARRAY, "matches_cleared") ));
+
+    ClassDB::bind_method(D_METHOD("match_clear_sort", "matches_cleared"), &Match3Engine::match_clear_sort);
+    BIND_VMETHOD(MethodInfo("_match_clear_sorted", PropertyInfo(Variant::ARRAY, "matches_cleared") ));
+
+    ClassDB::bind_method(D_METHOD("board_fill"), &Match3Engine::board_fill);
+    BIND_VMETHOD(MethodInfo("_board_filled", PropertyInfo(Variant::ARRAY, "added_hidden_cells") ));
 
 }
 

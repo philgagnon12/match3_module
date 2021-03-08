@@ -39,6 +39,7 @@ class Match3Engine : public Node {
 
     struct m3_match_result match_result_for_match_clear = M3_MATCH_RESULT_CONST;
     void board_clear_children();
+    Match3Cell* add_board_cell_from_m3_cell( struct m3_cell* cell );
 
 protected:
     void _board_build(void);
@@ -75,7 +76,13 @@ public:
                        Array matches ); // TODO not sure that pushing into array works...
 
     void match_clear( Array matches );
-    void _match_cleared( Array matches_cleared );
+    virtual void _match_cleared( Array matches_cleared );
+
+    void match_clear_sort( Array matches_cleared );
+    virtual void _match_clear_sorted( Array matches_cleared );
+
+    void board_fill(void);
+    virtual void _board_filled( Array added_hidden_cells );
 
     Match3Engine();
     ~Match3Engine();

@@ -34,9 +34,19 @@ Match3Cell::_position_as( uint8_t column, uint8_t row)
 }
 
 void
+Match3Cell::_path_to( uint8_t column, uint8_t row)
+{
+    if (get_script_instance() && get_script_instance()->has_method("_path_to")) {
+
+        get_script_instance()->call("_path_to", column, row);
+    }
+}
+
+void
 Match3Cell::_bind_methods()
 {
     BIND_VMETHOD(MethodInfo("_position_as", PropertyInfo(Variant::INT, "column"), PropertyInfo(Variant::INT, "row") ));
+    BIND_VMETHOD(MethodInfo("_path_to", PropertyInfo(Variant::INT, "column"), PropertyInfo(Variant::INT, "row") ));
 }
 
 Match3Cell::Match3Cell()
