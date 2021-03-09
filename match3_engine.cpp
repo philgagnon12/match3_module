@@ -59,7 +59,8 @@ Match3Engine::board_clear_children()
     for(int i = 0; i < this->board->get_child_count(); i++ )
     {
         Node* child = this->board->get_child(i);
-        this->board->remove_child(child);
+        child->queue_delete();
+        //memdelete(child);
     }
 
 }
@@ -67,7 +68,6 @@ Match3Engine::board_clear_children()
 Match3Cell* Match3Engine::add_board_cell_from_m3_cell( struct m3_cell* cell )
 {
     Map<uint8_t,Match3Cell*>::Element* e = this->category_to_engine_cell.find( cell->category );
-    ERR_FAIL_NULL_V(e, NULL);
     if( e != NULL )
     {
         Match3Cell* engine_cell = e->get();
@@ -135,6 +135,7 @@ Match3Engine::board_build(void)
     if( this->m3_board != NULL )
     {
         m3_board_destroy(this->m3_board);
+
     }
 
     m3_board_build( &this->m3_options, &this->m3_board);
@@ -493,11 +494,12 @@ void Match3Engine::_match_clear_sorted( Array matches_cleared )
     }
 }
 
-void Match3Engine::board_fill(void)
+Array
+Match3Engine::board_fill(void)
 {
     struct m3_cell* cell_current = this->m3_board;
 
-    Array added_hidden_cells;
+    Array board_filled_cells;
 
     while( cell_current != NULL )
     {
@@ -505,14 +507,13 @@ void Match3Engine::board_fill(void)
         {
             m3_cell_rand( &this->m3_options, cell_current );
             Match3Cell* added = this->add_board_cell_from_m3_cell(cell_current);
-            ERR_FAIL_NULL(added);
-            added_hidden_cells.push_back(added);
+            ERR_FAIL_NULL_V(added, board_filled_cells);
+            board_filled_cells.push_back(added);
         }
         cell_current = cell_current->next;
     }
 
-    this->_board_filled(added_hidden_cells);
-    added_hidden_cells.clear();
+    return board_filled_cells;
 }
 
 void Match3Engine::_board_filled( Array added_hidden_cells )

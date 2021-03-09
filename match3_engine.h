@@ -85,7 +85,9 @@ public:
     Array match_clear_sort( Array matches_cleared );
     virtual void _match_clear_sorted( Array matches_cleared );
 
-    void board_fill(void);
+    Array board_fill(void);
+    
+    // TODO get rid of ?
     virtual void _board_filled( Array added_hidden_cells );
 
     Match3Engine();
