@@ -42,8 +42,6 @@ class Match3Engine : public Node {
     Match3Cell* add_board_cell_from_m3_cell( struct m3_cell* cell );
 
 protected:
-    void _board_build(void);
-
     static void _bind_methods();
     virtual void add_child_notify(Node *p_child);
     virtual void remove_child_notify(Node *p_child);
@@ -63,12 +61,17 @@ public:
     void set_matches_required_to_clear(int matches_required_to_clear);
     int get_matches_required_to_clear(void) const;
 
+    Array board_build(void);
+
     // subject,target Match3Cell*
     void swap(Node* subject, Node* target);
     virtual void _swapped(Match3Cell* subject, Match3Cell* target);
 
     // subject,target Match3Cell*
     bool cell_are_neighbours(Node* subject, Node* target);
+
+    // Will attempt to match on the entire board and return the first match result
+    Array match(void);
 
     Node* // Match3Cell*
     match_either_cell( Node* a,
@@ -78,7 +81,8 @@ public:
     void match_clear( Array matches );
     virtual void _match_cleared( Array matches_cleared );
 
-    void match_clear_sort( Array matches_cleared );
+
+    Array match_clear_sort( Array matches_cleared );
     virtual void _match_clear_sorted( Array matches_cleared );
 
     void board_fill(void);
