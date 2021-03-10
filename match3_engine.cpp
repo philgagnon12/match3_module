@@ -244,6 +244,12 @@ Match3Engine::swap(Node* subject, Node* target)
             Match3Cell* engine_subject = Object::cast_to<Match3Cell>(subject);
             Match3Cell* engine_target  = Object::cast_to<Match3Cell>(target);
 
+            engine_subject->set_column(m3_target->column);
+            engine_subject->set_row(m3_target->row);
+
+            engine_target->set_column(m3_subject->column);
+            engine_target->set_row(m3_subject->row);
+
             this->board_cell_to_m3_cell.erase(engine_subject);
             this->board_cell_to_m3_cell.erase(engine_target);
 
