@@ -5,6 +5,7 @@
 
 #include "scene/main/node.h"
 #include "core/object.h"
+#include "core/os/mutex.h"
 
 #include "match3/match3.h"
 #include "match3/cell.h"
@@ -30,6 +31,7 @@ class Match3Engine : public Node {
 
     Match3Board* board = NULL;
 
+    Mutex* map_mutex = NULL;
     // TODO const struct m3_cell*
     Map<Match3Cell*,struct m3_cell*> board_cell_to_m3_cell;
     Map<struct m3_cell*,Match3Cell*> m3_cell_to_board_cell;
@@ -65,7 +67,6 @@ public:
 
     // subject,target Match3Cell*
     void swap(Node* subject, Node* target);
-    virtual void _swapped(Match3Cell* subject, Match3Cell* target);
 
     // subject,target Match3Cell*
     bool cell_are_neighbours(Node* subject, Node* target);

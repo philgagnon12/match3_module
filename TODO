@@ -1,1 +1,4 @@
 * Instead of assigning category i should have an Match3Cell::update_cell function
+
+
+* match_either_cell should return array of matched , it should also give a matched and not_matched
