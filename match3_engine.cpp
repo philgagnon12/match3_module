@@ -345,51 +345,59 @@ Match3Engine::match(void)
     return matched;
 }
 
-Node*
+Array
 Match3Engine::match_either_cell( Node* a,
-                                 Node* b,
-                                 Array matches )
+                                 Node* b )
 {
-    ERR_FAIL_NULL_V(a, NULL);
-    ERR_FAIL_NULL_V(b, NULL);
+    Array matches = Array();
+
+    ERR_FAIL_NULL_V(a, matches);
+    ERR_FAIL_NULL_V(b, matches);
+
+    
+    Array matches_a = Array();
+    Array matches_b = Array();
+
+    matches.push_back(matches_a);
+    matches.push_back(matches_b);
 
     const struct m3_cell* m3_cell_a = (const struct m3_cell*)this->node_to_m3_cell(a);
     const struct m3_cell* m3_cell_b = (const struct m3_cell*)this->node_to_m3_cell(b);
 
-    struct m3_match_result match_result = M3_MATCH_RESULT_CONST;
-    const struct m3_cell* m3_cell_a_or_b = NULL;
-
-    Node* a_or_b = NULL;
+    struct m3_match_result match_result_a = M3_MATCH_RESULT_CONST;
+    struct m3_match_result match_result_b = M3_MATCH_RESULT_CONST;
 
     m3_match_either_cell( &this->m3_options,
                           m3_cell_a,
                           m3_cell_b,
-                          &match_result,
-                          &m3_cell_a_or_b );
+                          &match_result_a,
+                          &match_result_b );
 
     this->map_mutex->lock();
-    for(int i = 0; i < match_result.matched_count; i++)
+    for(int i = 0; i < match_result_a.matched_count; i++)
     {
-        Map<struct m3_cell*,Match3Cell*>::Element* e = this->m3_cell_to_board_cell.find((struct m3_cell*)match_result.matched[i]);
+        Map<struct m3_cell*,Match3Cell*>::Element* e = this->m3_cell_to_board_cell.find((struct m3_cell*)match_result_a.matched[i]);
         Match3Cell* engine_cell_match = e->get();
         // TODO on fail im not m3_match_result_destroy
-        ERR_FAIL_NULL_V(engine_cell_match, NULL);
-        matches.push_back(engine_cell_match);
+        ERR_FAIL_NULL_V(engine_cell_match, Array());
+        matches_a.push_back(engine_cell_match);
     }
-
-    if( m3_cell_a_or_b != NULL )
+    for(int i = 0; i < match_result_b.matched_count; i++)
     {
-        Map<struct m3_cell*,Match3Cell*>::Element* a_or_b_e = this->m3_cell_to_board_cell.find((struct m3_cell*)m3_cell_a_or_b);
-        a_or_b = a_or_b_e->get();
+        Map<struct m3_cell*,Match3Cell*>::Element* e = this->m3_cell_to_board_cell.find((struct m3_cell*)match_result_b.matched[i]);
+        Match3Cell* engine_cell_match = e->get();
         // TODO on fail im not m3_match_result_destroy
-        ERR_FAIL_NULL_V(a_or_b, NULL);
-
+        ERR_FAIL_NULL_V(engine_cell_match, Array());
+        matches_b.push_back(engine_cell_match);
     }
+
+
     this->map_mutex->unlock();
 
-    m3_match_result_destroy(&match_result);
+    m3_match_result_destroy(&match_result_a);
+    m3_match_result_destroy(&match_result_b);
 
-    return a_or_b;
+    return matches;
 }
 
 void Match3Engine::match_clear( Array matches )
@@ -569,7 +577,7 @@ Match3Engine::_bind_methods()
 
     ClassDB::bind_method(D_METHOD("cell_are_neighbours", "subject", "target"), &Match3Engine::cell_are_neighbours);
     ClassDB::bind_method(D_METHOD("match"), &Match3Engine::match);
-    ClassDB::bind_method(D_METHOD("match_either_cell", "a", "b", "matches"), &Match3Engine::match_either_cell);
+    ClassDB::bind_method(D_METHOD("match_either_cell", "a", "b"), &Match3Engine::match_either_cell);
 
     ClassDB::bind_method(D_METHOD("match_clear", "matches"), &Match3Engine::match_clear);
     BIND_VMETHOD(MethodInfo("_match_cleared", PropertyInfo(Variant::ARRAY, "matches_cleared") ));

@@ -74,10 +74,9 @@ public:
     // Will attempt to match on the entire board and return the first match result
     Array match(void);
 
-    Node* // Match3Cell*
+    Array // Array(Array(), Array())
     match_either_cell( Node* a,
-                       Node* b,
-                       Array matches ); // TODO not sure that pushing into array works...
+                       Node* b );
 
     void match_clear( Array matches );
     virtual void _match_cleared( Array matches_cleared );
